@@ -74,9 +74,9 @@ class RequestEditorTab(IMessageEditorTab):
                 return True
         return False
 
-    # does the request contain one of the headers for a JWT?
+    # does the request contain one of the headers or cookie for a JWT?
     def containsJWT(self, content):
-        Header_List = ["authorization:", "x-auth-token:" ]
+        Header_List = ["authorization:", "x-auth-token:", "jwt:" ]
         request = self.extender.helpers.analyzeRequest(content)
         headers = request.getHeaders()
         for header in headers[1:]:
@@ -87,6 +87,25 @@ class RequestEditorTab(IMessageEditorTab):
             if name.lower() in Header_List and self.is_JWT(value):
                 self.JWT_Input.setText(value)
                 return header
+        
+        cookie_header_value = None
+        for header_line in headers:
+            if header_line.lower().startswith("cookie:"):
+                # Extract the value part after "Cookie:"
+                cookie_header_value = header_line[len("cookie:"):].strip()
+                break
+
+        if cookie_header_value:
+            # Cookies are typically separated by '; '
+            cookies = cookie_header_value.split(';')
+            for cookie_pair in cookies:
+                cookie_pair = cookie_pair.strip() # Remove leading/trailing whitespace
+                if '=' in cookie_pair:
+                    cookie_name, cookie_value = cookie_pair.split('=', 1) # Split only on the first '='
+                    if self.is_JWT(cookie_value):
+                        if self.JWT_Input:
+                            self.JWT_Input.setText(cookie_value)
+                        return "Cookie: " + cookie_name + "=" + cookie_value
         return False
     
     def is_JWT(self, token):
